@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>HTML Tidy</title>
+	<meta name="description" content="Tidy that shit up" />
+
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+	<meta name="viewport" content="initial-scale=1.0, minimum-scale=1.0" />
+	<link href="//netdna.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans:400italic,400,600,700,300' rel='stylesheet' type='text/css'>
+
+	<link rel="stylesheet" href="lib/codemirror.css">
+	<link rel="stylesheet" href="theme/night.css">
+	<!--<link media="all" rel="stylesheet" type="text/css" href="css/site.min.css" />-->
+<style>
+.wrapper {
+	height: 100%;
+	width: 100%;
+	left: 0;
+	top: 0;
+	overflow: hidden;
+	position: fixed;
+}
+body, p, li, td, th {
+	font-size: 12px;
+	font-weight: normal;
+	line-height: 1.2;
+	font-family: 'Open Sans', sans-serif;
+	color: #333;
+	background: #000;
+}
+.CodeMirror {
+	position: absolute;
+	left: 0;
+	right: 0;
+	height: auto;
+}
+.codemirror__wrapper--input .CodeMirror {
+	top: 0;
+	bottom: 50%;
+}
+.codemirror__wrapper--output .CodeMirror {
+	top: 50%;
+	bottom: 0;
+	background: #130433!important;
+}
+.hidden { display: none; }
+</style>
+</head>
+
+<body>
+<div class="wrapper">
+
+<div class="codemirror__wrapper codemirror__wrapper--input">
+	<textarea id="input"></textarea>
+</div>
+
+<div class="codemirror__wrapper codemirror__wrapper--output">
+	<textarea id="output"></textarea>
+</div>
+
+
+<!--
+<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+script type="text/javascript" src="js/site.min.js"></script>-->
+
+<script src="lib/codemirror.js"></script>
+<script src="addon/selection/selection-pointer.js"></script>
+<script src="mode/xml/xml.js"></script>
+<script src="mode/javascript/javascript.js"></script>
+<script src="mode/css/css.js"></script>
+<script src="mode/vbscript/vbscript.js"></script>
+<script src="mode/htmlmixed/htmlmixed.js"></script>
+<script src="keymap/sublime.js"></script>
+
+<script type="text/javascript">
+
+var input = CodeMirror.fromTextArea(document.getElementById("input"), {
+	mode: "htmlmixed",
+	theme: "night",
+	lineWrapping: true,
+	lineNumbers: true,
+	styleActiveLine: true,
+	matchBrackets: true,
+	keyMap: "sublime"
+});
+var output = CodeMirror.fromTextArea(document.getElementById("output"), {
+	mode: "htmlmixed",
+	theme: "night",
+	lineWrapping: true,
+	lineNumbers: true,
+	styleActiveLine: true,
+	matchBrackets: true,
+	keyMap: "sublime"
+});
+
+input.on("change", function() {
+	// Get junk
+	var junk = input.getValue();
+
+	// REMOVE:
+
+	// linebreaks
+	junk = junk.replace(/(\r\n|\n|\r)/gm, "");
+
+	// replace all tabs with spaces
+	junk = junk.replace(/\t/g,'');
+
+	// reduce multiple whitespace to single
+	junk = junk.replace(/ +(?= )/g,'');
+
+	// " >  -->  ">
+	junk = junk.replace(/\" >/gm, "\">");
+
+	// ; "  -->  ;"
+	junk = junk.replace(/; \"/gm, ";\"");
+	//  ;  -->  ;
+	junk = junk.replace(/ ;/gm, ";");
+
+	// <    -->  \n<
+	junk = junk.replace(/</gm, "\n<");
+
+	// >    --   \n>
+	junk = junk.replace(/>/gm, ">\n");
+
+	// "/>  --   " />
+	junk = junk.replace(/\"\/>/gm, "\" \/>");
+
+	// remove empty lines at this point
+	//junk = junk.replace(/\n\n/gm, "");
+	junk = junk.replace(/^\s*[\r\n]/gm, "");
+
+	// Go through line by line, indenting shit
+	var junkLines = junk.split("\n");
+	junk = ''; // reset
+	var indent = 0;
+
+	// for each line
+	for (var i=0; i<junkLines.length; i++) {
+		var line = junkLines[i];
+
+		// decrease indent for </
+		if (line.substring(0,2) == "</") indent--;
+
+		if (indent < 0) indent = 0;
+		if (i!=0) junk += "\n";
+		for (var n=0; n<indent; n++) junk += "\t";
+		junk += line;
+
+		//junk += " "+indent; // debugging
+
+		// increase indent for <  but not </ or self closing divs
+		if (line.substring(0,1) == "<" &&
+			line.substring(0,2) != "</" &&
+			// No indent for <input> or similar
+			line.substring(0,6) != "<input" &&
+			line.substring(0,4) != "<img" &&
+			line.substring(0,3) != "<br" &&
+			line.substring(0,3) != "<hr" &&
+			// maybe more - http://xahlee.info/js/html5_non-closing_tag.html
+			line.substring(line.length-2, line.length) != "/>") {
+			indent++;
+		}
+	}
+
+	// Clear output
+	output.setValue("");
+	output.clearHistory("");
+
+	// Feed to output
+	output.replaceSelection(junk, focus());
+	//output.focus();
+	//output.setCursor({line:0,ch:0});
+	output.refresh();
+})
+
+// ************* Test ************ //
+var junk = "<html><p>Lorem Ipsum\n</p><p>Lorem Ipsum<br />\nDolor\n</p><tr     style=\"vertical-align:top     ; \"   ><td>Indented like a motherfucker</td></tr></html>";
+
+input.replaceSelection(junk, focus());
+input.focus();
+input.setCursor({line:0,ch:0});
+input.refresh();
+// ******************************* //
+
+</script>
+
+</body>
+</html>
