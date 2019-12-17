@@ -146,7 +146,8 @@ input.on("change", function() {
 
 		if (indent < 0) indent = 0;
 		if (i!=0) junk += "\n";
-		for (var n=0; n<indent; n++) junk += "\t";
+    // Spacify
+		for (var n=0; n<indent; n++) junk += "  ";
 		junk += line;
 
 		//junk += " "+indent; // debugging
